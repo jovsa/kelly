@@ -1,4 +1,7 @@
 # Kelly Betting
+
+> This is for learning/experimentation purposes.
+
 ## Setup Instructions
 
 To create a virtual environment using [uv](https://github.com/astral-sh/uv) and install the requirements, run the following commands:
@@ -16,4 +19,11 @@ source .venv/bin/activate
 # Install requirements
 uv pip install -r requirements.txt
 ```
+
+## Running Tests
+
+To run all unittests with verbose output, use:
+
+```bash
+python -m pytest -v
 ```
