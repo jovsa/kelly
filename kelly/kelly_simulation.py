@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from kelly import kfsingle, kfidouble
+import os
 
 
 def analyze_bankroll_growth(
@@ -33,7 +34,7 @@ def analyze_bankroll_growth(
     return growth_rates
 
 
-def simulate_single_bet(probabilities, returns, num_trials=1000, initial_bankroll=1000):
+def simulate_single_bet(probabilities, returns, num_trials=1000, initial_bankroll=1000, image_dir="images"):
     """
     Simulate a single bet scenario using the Kelly Criterion.
     """
@@ -65,7 +66,9 @@ def simulate_single_bet(probabilities, returns, num_trials=1000, initial_bankrol
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    os.makedirs(image_dir, exist_ok=True)
+    plt.savefig(os.path.join(image_dir, "single_bet_growth_rate.png"))
+    plt.close()
 
 
 def simulate_double_bet(
@@ -75,10 +78,13 @@ def simulate_double_bet(
     returns2,
     num_trials=1000,
     initial_bankroll=1000,
+    image_dir="images"
 ):
     """
     Simulate two independent bets using the Kelly Criterion.
     """
+    if initial_bankroll <= 0:
+        raise ValueError("initial_bankroll must be positive and non-zero.")
     kelly_fractions = kfidouble(returns1, returns2, probabilities1, probabilities2)
     print("\nDouble Bet Simulation:")
     print(
@@ -98,7 +104,11 @@ def simulate_double_bet(
                 outcome2 = np.random.choice(len(probabilities2), p=probabilities2)
                 bankroll *= 1 + f1 * returns1[outcome1] + f2 * returns2[outcome2]
             final_bankrolls[i, j] = bankroll
-            growth_rates[i, j] = np.log(bankroll / initial_bankroll)
+            # Avoid log of zero or negative values
+            if bankroll > 0:
+                growth_rates[i, j] = np.log(bankroll / initial_bankroll)
+            else:
+                growth_rates[i, j] = float('-inf')
 
     max_growth_idx = np.unravel_index(np.argmax(growth_rates), growth_rates.shape)
     max_growth_f1 = fractions1[max_growth_idx[0]]
@@ -123,11 +133,13 @@ def simulate_double_bet(
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    os.makedirs(image_dir, exist_ok=True)
+    plt.savefig(os.path.join(image_dir, "double_bet_growth_rate_contour.png"))
+    plt.close()
 
 
 def simulate_bankroll_trajectories(
-    probabilities, returns, num_steps=50, num_trials=10000, initial_bankroll=1.0
+    probabilities, returns, num_steps=50, num_trials=10000, initial_bankroll=1.0, image_dir="images"
 ):
     """
     Simulate multiple bankroll trajectories over time using the Kelly fraction.
@@ -137,7 +149,6 @@ def simulate_bankroll_trajectories(
         f"\nSimulating {num_trials} paths for {num_steps} years at Kelly fraction {kelly_fraction:.4f}"
     )
 
-    # Store all trajectories: shape (num_trials, num_steps+1)
     bankrolls = np.zeros((num_trials, num_steps + 1))
     bankrolls[:, 0] = initial_bankroll
 
@@ -148,7 +159,6 @@ def simulate_bankroll_trajectories(
             bankroll *= 1 + kelly_fraction * returns[outcome]
             bankrolls[trial, t] = bankroll
 
-    # Calculate percentiles
     p5 = np.percentile(bankrolls, 5, axis=0)
     p95 = np.percentile(bankrolls, 95, axis=0)
     p50 = np.percentile(bankrolls, 50, axis=0)
@@ -156,20 +166,16 @@ def simulate_bankroll_trajectories(
     p90 = np.percentile(bankrolls, 90, axis=0)
     mean = np.mean(bankrolls, axis=0)
 
-    # Plot
     years = np.arange(num_steps + 1)
     plt.figure(figsize=(12, 8))
-    # Plot a sample of paths for visual clarity
     for i in range(min(100, num_trials)):
         plt.plot(years, bankrolls[i], color="gray", alpha=0.2, linewidth=0.7)
-    # Fill between percentiles
     plt.fill_between(
         years, p5, p95, color="gray", alpha=0.4, label="5th & 95th Percentile"
     )
     plt.fill_between(
         years, p10, p90, color="gray", alpha=0.2, label="10th & 90th Percentile"
     )
-    # Plot median and mean
     plt.plot(years, p50, "k-", linewidth=2, label="Median")
     plt.plot(years, mean, "k--", linewidth=2, label="Mean")
     plt.yscale("log")
@@ -181,7 +187,9 @@ def simulate_bankroll_trajectories(
     plt.legend()
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.tight_layout()
-    plt.show()
+    os.makedirs(image_dir, exist_ok=True)
+    plt.savefig(os.path.join(image_dir, "single_bet_trajectories.png"))
+    plt.close()
 
 
 def simulate_double_bet_trajectories(
@@ -192,6 +200,7 @@ def simulate_double_bet_trajectories(
     num_steps=50,
     num_trials=10000,
     initial_bankroll=1.0,
+    image_dir="images"
 ):
     """
     Simulate multiple bankroll trajectories over time for two independent bets using Kelly fractions.
@@ -202,7 +211,6 @@ def simulate_double_bet_trajectories(
         f"\nSimulating {num_trials} paths for {num_steps} years at Kelly fractions {f1:.4f}, {f2:.4f}"
     )
 
-    # Store all trajectories: shape (num_trials, num_steps+1)
     bankrolls = np.zeros((num_trials, num_steps + 1))
     bankrolls[:, 0] = initial_bankroll
 
@@ -214,7 +222,6 @@ def simulate_double_bet_trajectories(
             bankroll *= 1 + f1 * returns1[outcome1] + f2 * returns2[outcome2]
             bankrolls[trial, t] = bankroll
 
-    # Calculate percentiles
     p5 = np.percentile(bankrolls, 5, axis=0)
     p95 = np.percentile(bankrolls, 95, axis=0)
     p50 = np.percentile(bankrolls, 50, axis=0)
@@ -222,7 +229,6 @@ def simulate_double_bet_trajectories(
     p90 = np.percentile(bankrolls, 90, axis=0)
     mean = np.mean(bankrolls, axis=0)
 
-    # Plot
     years = np.arange(num_steps + 1)
     plt.figure(figsize=(12, 8))
     for i in range(min(100, num_trials)):
@@ -244,7 +250,9 @@ def simulate_double_bet_trajectories(
     plt.legend()
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.tight_layout()
-    plt.show()
+    os.makedirs(image_dir, exist_ok=True)
+    plt.savefig(os.path.join(image_dir, "double_bet_trajectories.png"))
+    plt.close()
 
 
 if __name__ == "__main__":
